@@ -1,0 +1,80 @@
+# Build directories
+build/
+bin/
+obj/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+CTestTestfile.cmake
+DartConfiguration.tcl
+Makefile
+compile_commands.json
+
+# Executables
+monocular_slam
+main_complete
+*.exe
+*.out
+*.app
+
+# Object files
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+
+# Libraries
+*.a
+*.lib
+
+# Debug files
+*.dSYM/
+*.pdb
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.swp
+*.swo
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.user
+*.suo
+*.ncb
+*.aps
+*.clw
+*.tags
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing output
+Testing/
+
+# Camera temp files
+/tmp/rpicam_stream
+/tmp/picam_frame.jpg
+/tmp/test_camera.jpg
+
+# Core dumps
+core
+core.*
+
+# Backup files
+*.bak
+*.backup
