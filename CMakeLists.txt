@@ -12,6 +12,7 @@ pkg_check_modules(LIBCAMERA REQUIRED libcamera)
 add_executable(monocular_slam 
     src/main.cpp
     src/camera/camera.cpp
+    src/IMU/IMU.cpp
 )
 
 # Include directories
