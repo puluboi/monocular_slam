@@ -44,7 +44,11 @@ MPU6050::MPU6050(uint8_t address)
     : i2c_fd_(-1), device_address_(address), is_initialized_(false),
       accel_offset_x_(0), accel_offset_y_(0), accel_offset_z_(0),
       gyro_offset_x_(0), gyro_offset_y_(0), gyro_offset_z_(0),
-      gravity_x_(0), gravity_y_(0), gravity_z_(9.81f), alpha_(0.98f) {
+      gyro_bias_x_(0), gyro_bias_y_(0), gyro_bias_z_(0),
+      last_temperature_(0), still_count_(0),
+      gravity_x_(0), gravity_y_(0), gravity_z_(9.81f), alpha_(0.98f),
+      roll_(0), pitch_(0), yaw_(0), orientation_initialized_(false),
+      last_timestamp_(0) {
 }
 
 MPU6050::~MPU6050() {
@@ -176,38 +180,74 @@ bool MPU6050::readData(IMUData& data) {
     int16_t gyro_y_raw = (buffer[10] << 8) | buffer[11];
     int16_t gyro_z_raw = (buffer[12] << 8) | buffer[13];
 
-    // Convert to physical units (raw acceleration including gravity)
+        // Convert to physical units (raw acceleration including gravity)
     float raw_accel_x = (accel_x_raw / ACCEL_SCALE_2G) * 9.81f - accel_offset_x_;  // m/s²
     float raw_accel_y = (accel_y_raw / ACCEL_SCALE_2G) * 9.81f - accel_offset_y_;
     float raw_accel_z = (accel_z_raw / ACCEL_SCALE_2G) * 9.81f - accel_offset_z_;
 
-    // Calculate total acceleration magnitude to detect motion
-    float total_accel = sqrt(raw_accel_x*raw_accel_x + raw_accel_y*raw_accel_y + raw_accel_z*raw_accel_z);
-    float motion_magnitude = fabs(total_accel - 9.81f); // Deviation from 1g indicates motion
-    
-    // Dynamic alpha: fast adaptation when still, slow when moving
-    float dynamic_alpha;
-    if (motion_magnitude < 0.5f) {  // Device is relatively still
-        dynamic_alpha = 0.3f;  // Fast adaptation (85% old, 15% new)
-    } else {  // Device is moving
-        dynamic_alpha = 0.98f;  // Slow adaptation to avoid removing real acceleration
-    }
+    // Calculate gyroscope readings with initial calibration
+    float raw_gyro_x = (gyro_x_raw / GYRO_SCALE_250) * (M_PI / 180.0f) - gyro_offset_x_;  // rad/s
+    float raw_gyro_y = (gyro_y_raw / GYRO_SCALE_250) * (M_PI / 180.0f) - gyro_offset_y_;
+    float raw_gyro_z = (gyro_z_raw / GYRO_SCALE_250) * (M_PI / 180.0f) - gyro_offset_z_;
 
-    // Update gravity estimation using dynamic low-pass filter
-    gravity_x_ = dynamic_alpha * gravity_x_ + (1.0f - dynamic_alpha) * raw_accel_x;
-    gravity_y_ = dynamic_alpha * gravity_y_ + (1.0f - dynamic_alpha) * raw_accel_y;
-    gravity_z_ = dynamic_alpha * gravity_z_ + (1.0f - dynamic_alpha) * raw_accel_z;
-
-    // Remove gravity to get motion-only acceleration
-    data.accel_x = raw_accel_x - gravity_x_;
-    data.accel_y = raw_accel_y - gravity_y_;
-    data.accel_z = raw_accel_z - gravity_z_;
-
-    data.gyro_x = (gyro_x_raw / GYRO_SCALE_250) * (M_PI / 180.0f) - gyro_offset_x_;  // rad/s
-    data.gyro_y = (gyro_y_raw / GYRO_SCALE_250) * (M_PI / 180.0f) - gyro_offset_y_;
-    data.gyro_z = (gyro_z_raw / GYRO_SCALE_250) * (M_PI / 180.0f) - gyro_offset_z_;
-
+    // Get temperature for drift compensation
     data.temperature = (temp_raw / 340.0f) + 36.53f;  // °C
+
+    // Dynamic gyroscope bias correction
+    // Check if device is still (low acceleration + low rotation)
+    float accel_magnitude = sqrt(raw_accel_x*raw_accel_x + raw_accel_y*raw_accel_y + raw_accel_z*raw_accel_z);
+    float gyro_magnitude = sqrt(raw_gyro_x*raw_gyro_x + raw_gyro_y*raw_gyro_y + raw_gyro_z*raw_gyro_z);
+    
+    bool is_still = (fabs(accel_magnitude - 9.81f) < 0.5f) && (gyro_magnitude < 0.05f); // 0.05 rad/s ≈ 3°/s
+    
+    if (is_still) {
+        still_count_++;
+        
+        // After being still for a while, update bias estimates
+        if (still_count_ > 50) { // ~50ms of stillness
+            float bias_alpha = 0.001f; // Very slow adaptation
+            gyro_bias_x_ = (1.0f - bias_alpha) * gyro_bias_x_ + bias_alpha * raw_gyro_x;
+            gyro_bias_y_ = (1.0f - bias_alpha) * gyro_bias_y_ + bias_alpha * raw_gyro_y;
+            gyro_bias_z_ = (1.0f - bias_alpha) * gyro_bias_z_ + bias_alpha * raw_gyro_z;
+        }
+    } else {
+        still_count_ = 0; // Reset counter when moving
+    }
+    
+    // Apply dynamic bias correction
+    data.gyro_x = raw_gyro_x - gyro_bias_x_;
+    data.gyro_y = raw_gyro_y - gyro_bias_y_;
+    data.gyro_z = raw_gyro_z - gyro_bias_z_;
+
+    // Simple approach: High-pass filter to remove DC component (gravity)
+    // Initialize filter on first run
+    static bool filter_init = false;
+    static float hp_accel_x = 0, hp_accel_y = 0, hp_accel_z = 0;
+    static float prev_raw_x = 0, prev_raw_y = 0, prev_raw_z = 0;
+    
+    if (!filter_init) {
+        hp_accel_x = 0;
+        hp_accel_y = 0; 
+        hp_accel_z = 0;
+        prev_raw_x = raw_accel_x;
+        prev_raw_y = raw_accel_y;
+        prev_raw_z = raw_accel_z;
+        filter_init = true;
+    }
+    
+    // High-pass filter: removes DC (gravity), keeps AC (motion)
+    float alpha = 0.8f;  // Filter coefficient
+    hp_accel_x = alpha * (hp_accel_x + raw_accel_x - prev_raw_x);
+    hp_accel_y = alpha * (hp_accel_y + raw_accel_y - prev_raw_y);
+    hp_accel_z = alpha * (hp_accel_z + raw_accel_z - prev_raw_z);
+    
+    prev_raw_x = raw_accel_x;
+    prev_raw_y = raw_accel_y;
+    prev_raw_z = raw_accel_z;
+    
+    data.accel_x = hp_accel_x;
+    data.accel_y = hp_accel_y;
+    data.accel_z = hp_accel_z;
 
     return true;
 }

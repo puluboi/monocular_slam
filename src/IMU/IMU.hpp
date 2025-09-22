@@ -14,9 +14,21 @@ private:
     float accel_offset_x_, accel_offset_y_, accel_offset_z_;
     float gyro_offset_x_, gyro_offset_y_, gyro_offset_z_;
     
+    // Dynamic gyroscope bias correction
+    float gyro_bias_x_, gyro_bias_y_, gyro_bias_z_;
+    float last_temperature_;
+    int still_count_;  // Counter for consecutive still readings
+    
     // Gravity estimation for gravity compensation
     float gravity_x_, gravity_y_, gravity_z_;
     float alpha_; // Low-pass filter coefficient for gravity estimation
+    
+    // Orientation tracking for precise gravity compensation
+    float roll_, pitch_, yaw_;  // Current orientation (radians)
+    bool orientation_initialized_;
+    
+    // Time tracking for integration
+    uint64_t last_timestamp_;
 
 public:
     struct IMUData {
