@@ -4,9 +4,10 @@
 #include <opencv2/opencv.hpp>
 #include "camera/camera.hpp"
 #include "IMU/IMU.hpp"
+#include "estimator/featureTracker.hpp"
 
 int main(int, char**) {
-    std::cout << "Monocular SLAM - Camera Stream" << std::endl;
+    std::cout << "Monocular SLAM - Feature Tracking" << std::endl;
 
     MPU6050 imu;
     
@@ -21,71 +22,46 @@ int main(int, char**) {
         std::cout << "IMU initialization failed - continuing without IMU" << std::endl;
     }
     
-    // Initialize camera
-    std::cout << "Initializing camera..." << std::endl;
-    PiCamera camera;
-    if (!camera.initialize()) {
-        std::cerr << "Failed to initialize camera" << std::endl;
-        return -1;
-    }
+    // Initialize feature tracker
+    std::cout << "Initializing feature tracker..." << std::endl;
+    featureTracker tracker;
     
-    if (!camera.startCapture()) {
-        std::cerr << "Failed to start camera capture" << std::endl;
-        return -1;
-    }
+    std::cout << "SLAM started. Press any key in the ORB window to continue, or Ctrl+C to quit." << std::endl;
     
-    // Create display window
-    cv::namedWindow("Camera Feed", cv::WINDOW_AUTOSIZE);
+    int frame_count = 0;
     
-    std::cout << "Streaming started. Press 'q' or ESC to quit." << std::endl;
-    
-    // Main capture loop
+    // Main SLAM loop
     while (true) {
-        cv::Mat frame = camera.captureFrame();
+        frame_count++;
         
-        if (!frame.empty()) {
-            cv::imshow("Camera Feed", frame);
-        }
+        // Run ORB feature detection and display
+        tracker.orbTest();
         
-        // Check for quit
-        char key = cv::waitKey(1) & 0xFF;
-        if (key == 'q' || key == 27) {
-            break;
-        }
+        // Read IMU data (less verbose output)
         if(imu_init) {
             MPU6050::IMUData imu_data;
             if (imu.readData(imu_data)) {
-                // Convert acceleration to g-forces (1g = 9.81 m/s²)
-                float accel_x_g = imu_data.accel_x / 9.81f;
-                float accel_y_g = imu_data.accel_y / 9.81f;
-                float accel_z_g = imu_data.accel_z / 9.81f;
-                
-                // Calculate total acceleration magnitude in g
-                float total_g = sqrt(accel_x_g*accel_x_g + accel_y_g*accel_y_g + accel_z_g*accel_z_g);
-                
-                std::cout << "Accel (g): [" 
-                          << std::fixed << std::setprecision(2)
-                          << accel_x_g << ", " 
-                          << accel_y_g << ", " 
-                          << accel_z_g << "] "
-                          << "Total: " << total_g << "g | "
-                          << "Gyro (°/s): [" 
-                          << std::setprecision(1)
-                          << imu_data.gyro_x * 180.0f/M_PI << ", " 
-                          << imu_data.gyro_y * 180.0f/M_PI << ", " 
-                          << imu_data.gyro_z * 180.0f/M_PI << "] | "
-                          << "Temp: " << std::setprecision(1) << imu_data.temperature << "°C"
-                          << std::endl;
-            } else {
-                std::cerr << "Failed to read IMU data" << std::endl;
+                // Only print IMU data every 10 frames to avoid spam
+                if (frame_count % 10 == 0) {
+                    float accel_x_g = imu_data.accel_x / 9.81f;
+                    float accel_y_g = imu_data.accel_y / 9.81f;
+                    float accel_z_g = imu_data.accel_z / 9.81f;
+                    float total_g = sqrt(accel_x_g*accel_x_g + accel_y_g*accel_y_g + accel_z_g*accel_z_g);
+                    
+                    std::cout << "Frame " << frame_count << " | "
+                              << "Accel: " << std::fixed << std::setprecision(2) << total_g << "g | "
+                              << "Gyro: [" << std::setprecision(1)
+                              << imu_data.gyro_x * 180.0f/M_PI << ", " 
+                              << imu_data.gyro_y * 180.0f/M_PI << ", " 
+                              << imu_data.gyro_z * 180.0f/M_PI << "]°/s"
+                              << std::endl;
+                }
             }
         }
     }
     
     // Cleanup
     cv::destroyAllWindows();
-    camera.stopCapture();
-    camera.release();
     
     std::cout << "Application ended." << std::endl;
     return 0;

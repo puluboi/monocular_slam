@@ -13,6 +13,7 @@ add_executable(monocular_slam
     src/main.cpp
     src/camera/camera.cpp
     src/IMU/IMU.cpp
+    src/estimator/featureTracker.cpp
 )
 
 # Include directories
