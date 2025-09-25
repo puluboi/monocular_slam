@@ -49,7 +49,7 @@ void featureTracker::orbTest()
                        std::vector<char>(), 
                        cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
         
-        //cv::imshow("Feature Tracking", output);
+        //cv::imshow("Feature Tracking", output); // Compare features.
         
         std::cout << "Features: " << curr_keypoints.size() 
                   << ", Good Matches: " << good_matches.size() << std::endl;
