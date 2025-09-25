@@ -5,7 +5,7 @@
 
 PiCamera::PiCamera() 
     : is_initialized_(false), is_capturing_(false),
-      width_(640), height_(480), framerate_(60) {
+      width_(1280), height_(960), framerate_(60) {
 }
 
 PiCamera::~PiCamera() {
