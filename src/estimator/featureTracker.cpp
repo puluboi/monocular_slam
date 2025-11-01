@@ -154,11 +154,7 @@ void featureTracker::orbTest()
             pose1, pose2, pts1_inliers, pts2_inliers, K);
         if(!points_3d.empty()){
             map_points_3d.insert(map_points_3d.end(), points_3d.begin(), points_3d.end());
-            if(ros_publisher_){
-                ros_publisher_->publishPointCloud(points_3d);
-                
-
-            }
+         
         }
         
         
@@ -211,12 +207,12 @@ std::vector<cv::Point3f> featureTracker::triangulatePoints(const cv::Mat &pose1,
             
             // Filter out points that are too far or behind camera
             if (pt3d.z > 0 && pt3d.z < 100.0) {  // Between 0 and 100 meters
-               // std::cout<< "Point: "<< pt3d.x<<" "<< pt3d.y<< " "<< pt3d.z<< std::endl;
+                std::cout<< "Point: "<< pt3d.x<<" "<< pt3d.y<< " "<< pt3d.z<< std::endl;
                 points_3d.push_back(pt3d);
             }
         }
     }
-    std::cout << "Pointcloud size"<< points_3d.size()<< "------------------------!" << std::endl;
+    //std::cout << "Pointcloud size"<< points_3d.size()<< "------------------------!" << std::endl;
     return points_3d;
 }
 
