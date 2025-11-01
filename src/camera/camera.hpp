@@ -79,7 +79,10 @@ public:
      * @return true if parameters are valid
      */
     bool setResolution(int width, int height);
-    
+
+    /// @brief Return's the current camera resolution
+    /// @return camera resolution as an int pair
+    std::pair<int, int> getResolution() const;
     /**
      * @brief Set camera framerate (takes effect on next startCapture)
      * @param fps Frames per second

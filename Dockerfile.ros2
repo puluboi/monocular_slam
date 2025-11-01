@@ -1,0 +1,42 @@
+FROM ros:jazzy
+ENV LD_LIBRARY_PATH=/usr/local/lib/aarch64-linux-gnu:$LD_LIBRARY_PATH
+
+# Install additional dependencies for SLAM with RViz2
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    pkg-config \
+    libopencv-dev \
+    libeigen3-dev \
+    i2c-tools \
+    libi2c-dev \
+    libcamera-dev \
+    python3-colcon-common-extensions \
+    ros-jazzy-cv-bridge \
+    ros-jazzy-image-transport \
+    ros-jazzy-sensor-msgs \
+    ros-jazzy-geometry-msgs \
+    ros-jazzy-nav-msgs \
+    ros-jazzy-tf2-ros \
+    ros-jazzy-rviz2 \
+    ros-jazzy-rviz-common \
+    ros-jazzy-rviz-default-plugins \
+    && rm -rf /var/lib/apt/lists*
+
+
+# Create ROS 2 workspace
+WORKDIR /ros2_ws
+
+# Copy your source code
+COPY . /ros2_ws/src/monocular_slam
+
+# Source ROS and build
+RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && colcon build"
+
+# Source workspace
+RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
+RUN echo "source /ros2_ws/install/setup.bash" >> ~/.bashrc
+
+WORKDIR /ros2_ws
+CMD ["/bin/bash"]

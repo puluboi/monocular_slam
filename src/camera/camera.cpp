@@ -222,6 +222,11 @@ bool PiCamera::setResolution(int width, int height) {
     return false;
 }
 
+std::pair<int, int> PiCamera::getResolution() const
+{
+    return std::pair(width_, height_);
+}
+
 bool PiCamera::setFramerate(int fps) {
     if (fps > 0 && fps <= 120) {
         framerate_ = fps;

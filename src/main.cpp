@@ -26,7 +26,10 @@ int main(int, char**) {
     std::cout << "Initializing feature tracker..." << std::endl;
     featureTracker tracker;
     
+    
     std::cout << "SLAM started. Press any key in the ORB window to continue, or Ctrl+C to quit." << std::endl;
+    std::cout << "The 3D window shows your reconstructed point cloud!" << std::endl;
+    std::cout << "Press ESC in the camera window to quit" << std::endl;
     
     int frame_count = 0;
     
@@ -58,6 +61,9 @@ int main(int, char**) {
                 }
             }
         }
+        
+        char key = cv::waitKey(1) & 0xFF;
+        if (key == 27 || key == 'q') break;
     }
     
     // Cleanup
