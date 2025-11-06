@@ -2,7 +2,7 @@
 
 #include <opencv2/opencv.hpp>
 #include "../camera/camera.hpp"
-
+#include "../IMU/IMU.hpp"
 #include <memory>
 class PointCloudPublisher;
 
@@ -20,7 +20,7 @@ public:
         const std::vector<cv::Point2f>& pts2,
         const cv::Mat& K);
 
-
+    void renderImg(cv::Mat img);
 
     // Getter methods for ROS 2 integration
     std::vector<cv::Point3f> getMapPoints() const { 
@@ -36,9 +36,10 @@ public:
         if (!prev_image.empty()) {
             return prev_image.clone();
         }
-        return cv::Mat();
+        return cv::Mat();is
     }
 private:
+    bool can_showImg = false;
     PiCamera cam;
     bool has_previous_frame;
     cv::Mat prev_image;

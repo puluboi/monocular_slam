@@ -93,15 +93,15 @@ void featureTracker::orbTest()
         cv::Mat K = (cv::Mat_<double>(3, 3) << fx, 0, cx,
                      0, fy, cy,
                      0, 0, 1);
-        F = cv::findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 10.0, 0.99, inliers);
+        F = cv::findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 10.0, 0.8, inliers);
         if (F.empty() || F.rows != 3 || F.cols != 3 || inliers.empty()) {
-            std::cout << "Fundamental matrix computation failed - skipping frame" << std::endl;
-            cv::imshow("Motion Vectors", tracking_viz);
+            //std::cout << "Fundamental matrix computation failed - skipping frame" << std::endl;
+            renderImg(tracking_viz);
             prev_image = image.clone();
             prev_keypoints = curr_keypoints;
             prev_descriptors = curr_descriptors.clone();
             has_previous_frame = true;
-            cv::waitKey(1);
+       
             return;
         }
         cv::Mat E = K.t() * F * K;
@@ -118,14 +118,13 @@ void featureTracker::orbTest()
 
         //  Check for minimum points before pose recovery
         if (pts1_inliers.size() < 8) {
-            std::cout << "Insufficient inliers (" << pts1_inliers.size() 
-                      << ") - skipping frame" << std::endl;
-            cv::imshow("Motion Vectors", tracking_viz);
+            //std::cout << "Insufficient inliers (" << pts1_inliers.size() 
+            //          << ") - skipping frame" << std::endl;
+            renderImg(tracking_viz);
             prev_image = image.clone();
             prev_keypoints = curr_keypoints;
             prev_descriptors = curr_descriptors.clone();
             has_previous_frame = true;
-            cv::waitKey(1);
             return;
         }
 
@@ -133,13 +132,12 @@ void featureTracker::orbTest()
         cv::Mat R, t, mask;
         int inliers_pose = cv::recoverPose(E, pts1_inliers, pts2_inliers, K, R, t, mask);
         if (R.empty() || t.empty() || inliers_pose < 8) {
-            std::cout << "Pose recovery failed - skipping frame" << std::endl;
-            cv::imshow("Motion Vectors", tracking_viz);
+            //std::cout << "Pose recovery failed - skipping frame" << std::endl;
+            renderImg(tracking_viz);
             prev_image = image.clone();
             prev_keypoints = curr_keypoints;
             prev_descriptors = curr_descriptors.clone();
             has_previous_frame = true;
-            cv::waitKey(1);
             return;
         }
         std::cout<< "pose succcess!"<<std::endl;
@@ -148,7 +146,7 @@ void featureTracker::orbTest()
         cv::Mat pose2 = cv::Mat::eye(4, 4, CV_64F);  // Current frame
         R.copyTo(pose2(cv::Rect(0, 0, 3, 3)));       // Copy rotation
         t.copyTo(pose2(cv::Rect(3, 0, 1, 3)));       // Copy translation
-        
+        std::cout << "Pose2: " << pose2 << std::endl;
         // Triangulate 3D points from 2D tracking
         std::vector<cv::Point3f> points_3d = triangulatePoints(
             pose1, pose2, pts1_inliers, pts2_inliers, K);
@@ -158,7 +156,7 @@ void featureTracker::orbTest()
         }
         
         
-        cv::imshow("Motion Vectors", tracking_viz);
+        renderImg(tracking_viz);
         
     } else {
         // First frame - just show keypoints
@@ -174,45 +172,46 @@ void featureTracker::orbTest()
     prev_keypoints = curr_keypoints;
     prev_descriptors = curr_descriptors.clone();
     has_previous_frame = true;
-    
-    cv::waitKey(1);
 }
 
-std::vector<cv::Point3f> featureTracker::triangulatePoints(const cv::Mat &pose1, const cv::Mat &pose2, const std::vector<cv::Point2f> &pts1, const std::vector<cv::Point2f> &pts2, const cv::Mat &K)
+std::vector<cv::Point3f> featureTracker::triangulatePoints(
+        const cv::Mat& pose1, const cv::Mat& pose2,
+        const std::vector<cv::Point2f>& pts1,
+        const std::vector<cv::Point2f>& pts2,
+        const cv::Mat& K)
 {
     std::vector<cv::Point3f> points_3d;
-    
-    cv::Mat P1 = K* pose1.rowRange(0,3);
-    cv::Mat P2 = K* pose2.rowRange(0,3);
+    cv::Mat P1 = K * pose1.rowRange(0, 3);
+    cv::Mat P2 = K * pose2.rowRange(0, 3);
 
-    cv::Mat pts1_homog, pts2_homog;
+    for (size_t i = 0; i < pts1.size(); ++i) {
+        cv::Mat A(4, 4, CV_64F);
+        double u1 = pts1[i].x, v1 = pts1[i].y;
+        double u2 = pts2[i].x, v2 = pts2[i].y;
 
-    cv::convertPointsToHomogeneous(cv::Mat(pts1).reshape(1), pts1_homog);
-    cv::convertPointsToHomogeneous(cv::Mat(pts2).reshape(1), pts2_homog);
+        A.row(0) = u1 * P1.row(2) - P1.row(0);
+        A.row(1) = v1 * P1.row(2) - P1.row(1);
+        A.row(2) = u2 * P2.row(2) - P2.row(0);
+        A.row(3) = v2 * P2.row(2) - P2.row(1);
 
-    cv::Mat points4D;
-    cv::triangulatePoints(P1, P2, pts1,pts2, points4D);
+        cv::SVD svd(A, cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
+        cv::Mat X = svd.vt.row(3).t(); // homogeneous 4x1
 
-    // Convert from homogeneous to 3D coordinates
-    for (int i = 0; i < points4D.cols; i++) {
-        cv::Mat point = points4D.col(i);
-        // Convert from homogeneous [X, Y, Z, W] to 3D [X/W, Y/W, Z/W]
-        float w = point.at<float>(3, 0);
-        if (std::abs(w) > 1e-6) {  // Avoid division by zero
-            cv::Point3f pt3d(
-                point.at<float>(0, 0) / w,
-                point.at<float>(1, 0) / w,
-                point.at<float>(2, 0) / w
-            );
-            
-            // Filter out points that are too far or behind camera
-            if (pt3d.z > 0 && pt3d.z < 100.0) {  // Between 0 and 100 meters
-                std::cout<< "Point: "<< pt3d.x<<" "<< pt3d.y<< " "<< pt3d.z<< std::endl;
-                points_3d.push_back(pt3d);
-            }
-        }
+        double w = X.at<double>(3, 0);
+        if (std::abs(w) < 1e-9) continue;
+
+        cv::Point3f pt(
+            static_cast<float>(X.at<double>(0, 0) / w),
+            static_cast<float>(X.at<double>(1, 0) / w),
+            static_cast<float>(X.at<double>(2, 0) / w));
+        if (pt.z > 0 && pt.z < 100.0f)
+            points_3d.push_back(pt);
     }
-    //std::cout << "Pointcloud size"<< points_3d.size()<< "------------------------!" << std::endl;
     return points_3d;
 }
-
+void featureTracker::renderImg(cv::Mat img){
+    if(can_showImg){
+        cv::imshow("Motion Vectors", img);
+        cv::waitKey(1);
+    }
+}

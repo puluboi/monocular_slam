@@ -15,3 +15,5 @@ aim is to build a system capable of 3D slam using a camera &amp; imu on a rpi5.
     - A real challenge was operating the Docker environment
         - it was a pain in the ass to get the libcamera in the docker to have access to the real hardware camera connected to my raspberry.
     - Next issue is getting the IMU and feature tracker to work in sync and create a usable point cloud, now that it's visualized i can see it is not working so good at all.
+6. 6.11.25
+    - One problem seems to be that the pose1 and pose2 matrices are always initialized, when they should use the previous poses?
