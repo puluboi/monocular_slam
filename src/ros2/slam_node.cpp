@@ -43,6 +43,8 @@ int main(int argc, char** argv)
                 // Access map points if available
                 if (!tracker->getMapPoints().empty()) {
                     ros_publisher->publishPointCloud(tracker->getMapPoints());
+                    ros_publisher->publishCameraPose(tracker->getCurrentPose());
+                    
                 }
                 
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));

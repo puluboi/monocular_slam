@@ -9,13 +9,14 @@ find_package(Threads REQUIRED)
 
 set(SLAM_CORE_SOURCES
     src/estimator/featureTracker.cpp
-    src/IMU/IMU.cpp
+    lib/IMU/MPU6050.cpp
     src/camera/camera.cpp
 )
 
 set(SLAM_CORE_INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/lib
 )
 
 if(ament_cmake_FOUND)
@@ -91,4 +92,5 @@ else()
     add_executable(monocular_slam src/main.cpp)
     target_include_directories(monocular_slam PRIVATE ${SLAM_CORE_INCLUDE_DIRS})
     target_link_libraries(monocular_slam PRIVATE slam_core)
+    
 endif()
