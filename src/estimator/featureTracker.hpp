@@ -2,7 +2,7 @@
 
 #include <opencv2/opencv.hpp>
 #include "../camera/camera.hpp"
-#include "../../lib/IMU/MPU6050.h"
+#include "imuEstimator.hpp"
 #include <memory>
 #include <chrono>
 
@@ -66,14 +66,14 @@ private:
     cv::Mat prev_descriptors;
     std::vector<cv::DMatch> matches;
 
-    MPU6050 imu = MPU6050(0x68,true); // sudo i2cdetect -y 1 for the addr.
     
     std::vector<cv::KeyPoint> curr_keypoints;
     std::vector<cv::KeyPoint> prev_keypoints;
-
+    imuEstimator estimator;
     std::vector<cv::Point3f> map_points_3d;
     cv::Mat current_pose;
     cv::Mat previous_pose;
     cv::Mat world_pose_ = cv::Mat::eye(4, 4, CV_64F);
     std::shared_ptr<PointCloudPublisher> ros_publisher_;
+    bool isFrameBlurry(const cv::Mat &processed_image, double blur_threshold);
 };

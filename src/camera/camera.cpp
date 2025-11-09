@@ -46,9 +46,9 @@ bool PiCamera::initialize() {
         std::cerr << "Failed to acquire camera" << std::endl;
         return false;
     }
-    
     is_initialized_ = true;
     std::cout << "Camera initialized successfully!" << std::endl;
+    
     return true;
 }
 

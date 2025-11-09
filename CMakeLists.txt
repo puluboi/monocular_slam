@@ -9,8 +9,10 @@ find_package(Threads REQUIRED)
 
 set(SLAM_CORE_SOURCES
     src/estimator/featureTracker.cpp
+    src/estimator/featureTrackerHelper.cpp
     lib/IMU/MPU6050.cpp
     src/camera/camera.cpp
+    src/estimator/imuEstimator.cpp
 )
 
 set(SLAM_CORE_INCLUDE_DIRS

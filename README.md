@@ -17,3 +17,7 @@ aim is to build a system capable of 3D slam using a camera &amp; imu on a rpi5.
     - Next issue is getting the IMU and feature tracker to work in sync and create a usable point cloud, now that it's visualized i can see it is not working so good at all.
 6. 6.11.25
     - One problem seems to be that the pose1 and pose2 matrices are always initialized, when they should use the previous poses?
+7. 9.11.25
+    - Fixed the previous issue. Made a helper function to filter out blurry frames. Debugged the R frame.
+    - TODO: change the IMU library to something that actually works. calibrate the camera using a python script and a checkerboard. The changes should help fix the pose esimation
+        & by association also the triangulation then.
